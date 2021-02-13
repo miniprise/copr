@@ -7,7 +7,7 @@ Summary:        bisq from copr
 License:        MIT
 URL:            https://github.com/bisq-network/bisq/
 Source0:        https://github.com/bisq-network/%{name}/archive/v%{version}.tar.gz
-BuildRequires:  git git-lfs java
+BuildRequires:  git git-lfs java wget
 Requires:       java
 
 %description
@@ -17,6 +17,7 @@ A decentralized bitcoin exchange network
 %autosetup -n %{name}-%{version}
 
 %build
+wget https://raw.githubusercontent.com/miniprise/copr/46feec5b74cdc0674e5dadc97d46115b3449fb6f/bisq.desktop
 ./gradlew build
 
 %install
