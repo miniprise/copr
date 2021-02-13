@@ -17,7 +17,7 @@ A decentralized bitcoin exchange network
 %autosetup -n %{name}-%{version}
 
 %build
-wget https://raw.githubusercontent.com/miniprise/copr/bisq/desktop/bisq.desktop
+wget https://raw.githubusercontent.com/miniprise/copr/main/desktop/bisq.desktop
 ./gradlew build
 
 %install
