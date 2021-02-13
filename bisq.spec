@@ -26,7 +26,7 @@ cp -r "desktop/build/app/bin/" "%{buildroot}/opt/bisq"
 cp -r "desktop/build/app/lib/" "%{buildroot}/opt/bisq"
 cp -r "bisq-desktop" "%{buildroot}/opt/bisq/"
 install -d "%{buildroot}/usr/bin"
-ln -s "/opt/bisq/bisq-desktop" "/usr/bin/bisq-desktop"
+ln -s "/opt/bisq/bisq-desktop" "%{buildroot}/usr/bin/bisq-desktop"
 install -Dm644 bisq.desktop "%{buildroot}/usr/share/applications/bisq.desktop"
 install -Dm644 "desktop/package/linux/icon.png" "%{buildroot}/usr/share/pixmaps/bisq.png"
 
