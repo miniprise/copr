@@ -34,7 +34,7 @@ install -Dm644 "desktop/package/linux/icon.png" "%{buildroot}/usr/share/pixmaps/
 /opt/bisq
 /usr/bin/bisq-desktop
 /usr/share/applications/bisq.desktop
-/usr/share/pixmaps/bisq.png"
+/usr/share/pixmaps/bisq.png
 
 %changelog
 * Sat Feb 13 2021 Miniprise <miniprise@protonmail.com> - 1.5.5
