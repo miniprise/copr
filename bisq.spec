@@ -17,7 +17,6 @@ A decentralized bitcoin exchange network
 %autosetup -n %{name}-%{version}
 
 %build
-git lfs pull
 ./gradlew build
 
 %install
