@@ -16,7 +16,7 @@ BuildRequires: cargo
 %{summary}.
 
 %prep
-%autosetup
+%setup -q
 
 %build
 cd b3sum
