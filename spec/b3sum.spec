@@ -16,7 +16,7 @@ BuildRequires: cargo
 %{summary}.
 
 %prep
-tar xf %version.tar.gz
+tar xf BLAKE3-%version.tar.gz
 cd BLAKE3-%version
 
 %build
