@@ -19,10 +19,10 @@ BuildRequires: cargo
 %autosetup
 
 %build
-cargo build --release
+cargo build --release --manifest-path b3sum/Cargo.toml
 
 %install
-install -p -D -m755 target/release/%{name}         %{buildroot}%{_bindir}/%{name}
+install -p -D -m755 b3sum/target/release/%{name}         %{buildroot}%{_bindir}/%{name}
 
 %files
 %{_bindir}/%{name}
