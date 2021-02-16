@@ -7,7 +7,7 @@ Summary:       A command line utility for calculating BLAKE3 hashes, similar to 
 License:       Apache-2.0
 
 URL:           https://github.com/BLAKE3-team/BLAKE3
-Source0:       %{url}/archive/v%version.tar.gz
+Source0:       %{url}/archive/%version.tar.gz
 
 BuildRequires: rust
 BuildRequires: cargo
