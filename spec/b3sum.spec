@@ -16,7 +16,8 @@ BuildRequires: cargo
 %{summary}.
 
 %prep
-%setup -q
+tar xf %version.tar.gz
+cd BLAKE3-%version
 
 %build
 cd b3sum
