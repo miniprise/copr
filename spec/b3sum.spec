@@ -16,7 +16,7 @@ BuildRequires: cargo
 %{summary}.
 
 %prep
-%autosetup
+%autosetup -n BLAKE3-%version
 
 %build
 cargo build --release --manifest-path b3sum/Cargo.toml
