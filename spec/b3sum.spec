@@ -16,15 +16,13 @@ BuildRequires: cargo
 %{summary}.
 
 %prep
-tar xf BLAKE3-%version.tar.gz
-cd BLAKE3-%version
+%autosetup
 
 %build
-cd b3sum
-cargo build --release
+cargo build --release --manifest-path b3sum/Cargo.toml
 
 %install
-install -p -D -m755 target/release/%{name}         %{buildroot}%{_bindir}/%{name}
+install -p -D -m755 b3sum/target/release/%{name}         %{buildroot}%{_bindir}/%{name}
 
 %files
 %{_bindir}/%{name}
