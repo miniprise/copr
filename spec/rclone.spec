@@ -10,7 +10,7 @@ Source0:        https://github.com/rclone/%{name}/archive/v%{version}.tar.gz
 BuildRequires:  git golang
 
 %description
-"rsync for cloud storage" - Google Drive, S3, Dropbox, Backblaze B2, One Drive, Swift, Hubic, Wasabi, Google Cloud Storage, Yandex Files 
+"rsync for cloud storage" - Google Drive, S3, Dropbox, Backblaze B2, One Drive, Swift, Hubic, Wasabi, Google Cloud Storage, Yandex Files...
 
 %prep
 %autosetup -n %{name}-%{version}
