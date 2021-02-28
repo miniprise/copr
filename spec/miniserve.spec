@@ -1,7 +1,7 @@
 %define debug_package %{nil}
 
 Name:          miniserve
-Version:       0.10.4
+Version:       0.11.0
 Release:       1%{?dist}
 Summary:       For when you really just want to serve some files over HTTP right now! 
 License:       MIT
