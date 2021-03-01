@@ -4,7 +4,7 @@ Name:          bat
 Version:       0.18.0
 Release:       1%{?dist}
 Summary:       A cat(1) clone with wings.
-License:       MIT
+License:       Apache-2.0
 
 URL:           https://github.com/sharkdp/bat/
 Source0:       %{url}/archive/v%version.tar.gz
