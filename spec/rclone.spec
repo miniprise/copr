@@ -2,7 +2,7 @@
 
 Name:           rclone
 Version:        1.54.0
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        rclone from copr
 License:        MIT
 URL:            https://github.com/rclone/rclone
@@ -20,9 +20,11 @@ go build -v
 
 %install
 install -p -D -m755 %{name}         %{buildroot}%{_bindir}/%{name}
+install -Dpm 0644 ./rclone.1 %{buildroot}%{_mandir}/man1/rclone.1
 
 %files
 %{_bindir}/%{name}
+%{_mandir}/man1/rclone.1*
 
 %changelog
 * Sat Feb 13 2021 Miniprise <miniprise@protonmail.com> - 1.54.0
