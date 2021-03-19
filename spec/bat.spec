@@ -2,7 +2,7 @@
 
 Name:          bat
 Version:       0.18.0
-Release:       1
+Release:       1{?dist}
 Summary:       A cat(1) clone with wings.
 License:       Apache-2.0
 
