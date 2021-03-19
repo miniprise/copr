@@ -2,7 +2,7 @@
 
 Name:           rclone
 Version:        1.54.1
-Release:        1{?dist}
+Release:        1%{?dist}
 Summary:        rclone from copr
 License:        MIT
 URL:            https://github.com/rclone/rclone
