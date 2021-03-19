@@ -2,7 +2,7 @@
 
 Name:           bisq
 Version:        1.5.9
-Release:        1
+Release:        1{?dist}
 Summary:        bisq from copr
 License:        MIT
 URL:            https://github.com/bisq-network/bisq/
