@@ -1,7 +1,7 @@
 %define debug_package %{nil}
 
 Name:           bisq
-Version:        1.6.5
+Version:        1.7.0
 Release:        1%{?dist}
 Summary:        bisq from copr
 License:        MIT
