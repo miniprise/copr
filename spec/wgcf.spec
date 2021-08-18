@@ -1,7 +1,7 @@
 %define debug_package %{nil}
 
 Name:           wgcf
-Version:        2.2.6
+Version:        2.2.7
 Release:        1%{?dist}
 Summary:        Cross-platform, unofficial CLI for Cloudflare Warp.
 License:        MIT
