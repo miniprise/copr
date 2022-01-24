@@ -1,7 +1,7 @@
 %define debug_package %{nil}
 
 Name:          b3sum
-Version:       1.2.0
+Version:       1.3.0
 Release:       1%{?dist}
 Summary:       A command line utility for calculating BLAKE3 hashes, similar to Coreutils tools like b2sum or md5sum 
 License:       Apache-2.0
