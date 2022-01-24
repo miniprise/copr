@@ -16,6 +16,7 @@ BuildRequires:  git golang
 %autosetup -n %{name}-%{version}
 
 %build
+go mod download github.com/sagikazarmark/crypt
 go build -v
 
 %install
