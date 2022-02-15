@@ -41,21 +41,6 @@ Gjs allows using GNOME libraries from Javascript. It's based on the
 Spidermonkey Javascript engine from Mozilla and the GObject introspection
 framework.
 
-%package devel
-Summary: Development package for %{name}
-Requires: %{name}%{?_isa} = %{version}-%{release}
-
-%description devel
-Files for development with %{name}.
-
-%package tests
-Summary: Tests for the gjs package
-Requires: %{name}%{?_isa} = %{version}-%{release}
-
-%description tests
-The gjs-tests package contains tests that can be used to verify
-the functionality of the installed gjs package.
-
 %prep
 %autosetup -p1
 
@@ -66,9 +51,6 @@ the functionality of the installed gjs package.
 %install
 %meson_install
 
-%check
-%{shrink:xvfb-run -s "-screen 0 1600x1200x24" %meson_test --timeout-multiplier=5}
-
 %files
 %license COPYING
 %doc NEWS README.md
@@ -76,20 +58,6 @@ the functionality of the installed gjs package.
 %{_bindir}/gjs-console
 %{_libdir}/gjs/
 %{_libdir}/libgjs.so.0*
-
-%files devel
-%doc examples/*
-%{_includedir}/gjs-1.0
-%{_libdir}/pkgconfig/gjs-1.0.pc
-%{_libdir}/libgjs.so
-%dir %{_datadir}/gjs-1.0
-%{_datadir}/gjs-1.0/lsan/
-%{_datadir}/gjs-1.0/valgrind/
-
-%files tests
-%{_libexecdir}/installed-tests/
-%{_datadir}/glib-2.0/schemas/org.gnome.GjsTest.gschema.xml
-%{_datadir}/installed-tests/
 
 %changelog
 * Tue Feb 08 2022 David King <amigadave@amigadave.com> - 1.70.1-1
