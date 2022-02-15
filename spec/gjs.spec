@@ -1,6 +1,6 @@
 %global glib2_version 2.66.0
 %global gobject_introspection_version 1.66.0
-%global mozjs78_version 78.15.0-1
+%global mozjs91_version 91.5.0-1
 
 Name:           gjs
 Version:        1.71.1
@@ -23,7 +23,7 @@ BuildRequires:  pkgconfig(cairo-gobject)
 BuildRequires:  pkgconfig(gio-2.0) >= %{glib2_version}
 BuildRequires:  pkgconfig(gobject-introspection-1.0) >= %{gobject_introspection_version}
 BuildRequires:  pkgconfig(gtk4)
-BuildRequires:  pkgconfig(mozjs-78) >= %{mozjs78_version}
+BuildRequires:  pkgconfig(mozjs-91) >= %{mozjs91_version}
 BuildRequires:  pkgconfig(sysprof-capture-4)
 # For GTK+ 3 tests
 BuildRequires:  gtk3-devel
@@ -34,7 +34,7 @@ BuildRequires:  xorg-x11-server-Xvfb
 
 Requires: glib2%{?_isa} >= %{glib2_version}
 Requires: gobject-introspection%{?_isa} >= %{gobject_introspection_version}
-Requires: mozjs78%{?_isa} >= %{mozjs78_version}
+Requires: mozjs91%{?_isa} >= %{mozjs91_version}
 
 %description
 Gjs allows using GNOME libraries from Javascript. It's based on the
