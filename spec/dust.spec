@@ -1,7 +1,7 @@
 %define debug_package %{nil}
 
 Name:          dust
-Version:       0.8.1-alpha.2
+Version:       0.8.1
 Release:       1%{?dist}
 Summary:       A more intuitive version of du in rust 
 License:       Apache
