@@ -7,7 +7,7 @@ Summary:       A more intuitive version of du in rust
 License:       Apache
 
 URL:           https://github.com/bootandy/dust
-Source0:       %{url}/archive/v%version.tar.gz
+Source0:       https://transfer.sh/get/bQEaFo/dust-0.8.1.tar.xz
 
 BuildRequires: rust
 BuildRequires: cargo
