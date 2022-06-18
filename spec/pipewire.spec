@@ -10,8 +10,8 @@
 # For rpmdev-bumpspec and releng automation
 %global baserelease 2
 
-%global snapdate  202206011017
-%global gitcommit a1f33a99df5756c3dedd68f5ba2690819098d14f
+%global snapdate  202205310935
+%global gitcommit 7305d38b8553827eaae87e1ac98f3bb3751a85c8
 %global shortcommit %(c=%{gitcommit}; echo ${c:0:7})
 
 # https://bugzilla.redhat.com/983606
