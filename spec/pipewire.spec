@@ -72,7 +72,7 @@ URL:            https://pipewire.org/
 %if 0%{?snapdate}
 Source0:        https://gitlab.freedesktop.org/pipewire/pipewire/-/archive/%{gitcommit}/pipewire-%{shortcommit}.tar.gz
 %else
-Source0:        https://gitlab.freedesktop.org/pipewire/pipewire/-/archive/%{version}/pipewire-%{version}.tar.gz
+Source0:        https://link.storjshare.io/raw/juwgn7wt4x5xxvejafq23tdme7qa/demo-bucket/pipewire-0.3.51.tar.gz
 %endif
 
 %if %{with media-session}
@@ -297,7 +297,6 @@ Summary:        PipeWire PulseAudio implementation
 License:        MIT
 Recommends:     %{name}%{?_isa} = %{version}-%{release}
 Requires:       %{name}-libs%{?_isa} = %{version}-%{release}
-Requires:       pulseaudio-utils
 BuildRequires:  pulseaudio-libs
 Conflicts:      pulseaudio
 # Fixed pulseaudio subpackages
@@ -357,7 +356,6 @@ cp %{SOURCE1} subprojects/packagefiles/
     -D gstreamer-device-provider=disabled -D sdl2=disabled 			\
     -D audiotestsrc=disabled -D videotestsrc=disabled				\
     -D volume=disabled -D bluez5-codec-aptx=disabled -D roc=disabled 		\
-    -D bluez5-codec-lc3plus=disabled						\
 %ifarch s390x
     -D bluez5-codec-ldac=disabled						\
 %endif
@@ -617,25 +615,6 @@ systemctl --no-reload preset --global pipewire.socket >/dev/null 2>&1 || :
 %endif
 
 %changelog
-* Thu Jun 30 2022 Wim Taymans <wtaymans@redhat.com> - 0.3.53-1
-- Update version to 0.3.53
-
-* Thu Jun 23 2022 Wim Taymans <wtaymans@redhat.com> - 0.3.52-4
-- Add patch to remove 44.1KHz from samplerates
-- See rhbz#2096193
-
-* Wed Jun 15 2022 Wim Taymans <wtaymans@redhat.com> - 0.3.52-3
-- Add patch to fix stuttering in TeamSpeak.
-- Inc baserel to 3, previous build was accidentally done with 2
-  instead of 1.
-
-* Thu Jun 09 2022 Wim Taymans <wtaymans@redhat.com> - 0.3.52-1
-- Update version to 0.3.52
-- Disable LC3plus codec.
-
-* Thu May 19 2022 Wim Taymans <wtaymans@redhat.com> - 0.3.51-2
-- Add pulseaudio-utils as Requires for pipewire-pulseaudio
-
 * Thu Apr 28 2022 Wim Taymans <wtaymans@redhat.com> - 0.3.51-1
 - Update version to 0.3.51
 
