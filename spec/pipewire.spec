@@ -72,7 +72,7 @@ URL:            https://pipewire.org/
 %if 0%{?snapdate}
 Source0:        https://gitlab.freedesktop.org/pipewire/pipewire/-/archive/%{gitcommit}/pipewire-%{shortcommit}.tar.gz
 %else
-Source0:        https://link.storjshare.io/raw/juwgn7wt4x5xxvejafq23tdme7qa/demo-bucket/pipewire-0.3.51.tar.gz
+Source0:        https://gitlab.freedesktop.org/pipewire/pipewire/-/archive/%{version}/pipewire-%{version}.tar.gz
 %endif
 
 %if %{with media-session}
@@ -84,9 +84,9 @@ Source1:        https://gitlab.freedesktop.org/pipewire/media-session/-/archive/
 ## upstreamable patches
 
 ## fedora patches
-%if %{with media-session}
-Patch1001:      0001-Build-media-session-from-local-tarbal.patch
-%endif
+#%if %{with media-session}
+#Patch1001:      0001-Build-media-session-from-local-tarbal.patch
+#%endif
 
 BuildRequires:  gettext
 BuildRequires:  meson >= 0.59.0
