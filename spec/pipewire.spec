@@ -6,13 +6,14 @@
 %global spaversion   0.2
 %global soversion    0
 %global libversion   %{soversion}.%(bash -c '((intversion = (%{minorversion} * 100) + %{microversion})); echo ${intversion}').0
+%global ms_version   0.4.1
 
 # For rpmdev-bumpspec and releng automation
-%global baserelease 2
+%global baserelease 1
 
-%global snapdate  202205310935
-%global gitcommit 7305d38b8553827eaae87e1ac98f3bb3751a85c8
-%global shortcommit %(c=%{gitcommit}; echo ${c:0:7})
+#global snapdate   20210107
+#global gitcommit  b17db2cebc1a5ab2c01851d29c05f79cd2f262bb
+#global shortcommit %(c=%{gitcommit}; echo ${c:0:7})
 
 # https://bugzilla.redhat.com/983606
 %global _hardened_build 1
@@ -23,6 +24,12 @@
 # Build conditions for various features
 %bcond_without alsa
 %bcond_without vulkan
+
+%if (0%{?fedora} && 0%{?fedora} < 35)
+%bcond_without media_session
+%else
+%bcond_with media_session
+%endif
 
 # Features disabled for RHEL 8
 %if 0%{?rhel} && 0%{?rhel} < 9
@@ -47,18 +54,29 @@
 %bcond_without libcamera_plugin
 %endif
 
+# libusb is removed from f37
+%if (0%{?fedora} && 0%{?fedora} < 37)
+%bcond_without libusb
+%else
+%bcond_with libusb
+%endif
+
 %bcond_without v4l2
 
 Name:           pipewire
 Summary:        Media Sharing Server
 Version:        %{majorversion}.%{minorversion}.%{microversion}
-Release:        %{?snapdate:%{snapdate}git%{shortcommit}}%{?dist}
+Release:        %{baserelease}%{?snapdate:.%{snapdate}git%{shortcommit}}%{?dist}
 License:        MIT
 URL:            https://pipewire.org/
 %if 0%{?snapdate}
 Source0:        https://gitlab.freedesktop.org/pipewire/pipewire/-/archive/%{gitcommit}/pipewire-%{shortcommit}.tar.gz
 %else
-Source0:        https://gitlab.freedesktop.org/pipewire/pipewire/-/archive/%{version}/pipewire-%{version}.tar.gz
+Source0:        https://link.storjshare.io/raw/juwgn7wt4x5xxvejafq23tdme7qa/demo-bucket/pipewire-0.3.51.tar.gz
+%endif
+
+%if %{with media-session}
+Source1:        https://gitlab.freedesktop.org/pipewire/media-session/-/archive/%{ms_version}/media-session-%{ms_version}.tar.gz
 %endif
 
 ## upstream patches
@@ -66,9 +84,12 @@ Source0:        https://gitlab.freedesktop.org/pipewire/pipewire/-/archive/%{ver
 ## upstreamable patches
 
 ## fedora patches
+%if %{with media-session}
+Patch1001:      0001-Build-media-session-from-local-tarbal.patch
+%endif
 
 BuildRequires:  gettext
-BuildRequires:  meson >= 0.49.0
+BuildRequires:  meson >= 0.59.0
 BuildRequires:  gcc
 BuildRequires:  g++
 BuildRequires:  pkgconfig
@@ -103,7 +124,9 @@ BuildRequires:  ncurses-devel
 BuildRequires:  pulseaudio-libs-devel
 BuildRequires:  avahi-devel
 BuildRequires:  pkgconfig(webrtc-audio-processing) >= 0.2
-BuildRequires:  libusb1-devel
+%if %{with libusb}
+BuildRequires:  libusb-devel
+%endif
 BuildRequires:  readline-devel
 BuildRequires:  lilv-devel
 BuildRequires:  openssl-devel
@@ -165,6 +188,24 @@ Requires:       %{name}-libs%{?_isa} = %{version}-%{release}
 
 %description utils
 This package contains command line utilities for the PipeWire media server.
+
+%if %{with media_session}
+%package media-session
+Summary:        PipeWire Media Session Manager
+License:        MIT
+Recommends:     %{name}%{?_isa} = %{version}-%{release}
+Obsoletes:      %{name}-libpulse < %{version}-%{release}
+# before 0.3.30-5 the session manager was in the main pipewire package
+Conflicts:      %{name}%{?_isa} < 0.3.30-5
+
+# Virtual Provides to support swapping between PipeWire session manager implementations
+Provides:       pipewire-session-manager
+Conflicts:      pipewire-session-manager
+
+%description media-session
+This package contains the reference Media Session Manager for the
+PipeWire media server.
+%endif
 
 %if %{with alsa}
 %package alsa
@@ -256,6 +297,7 @@ Summary:        PipeWire PulseAudio implementation
 License:        MIT
 Recommends:     %{name}%{?_isa} = %{version}-%{release}
 Requires:       %{name}-libs%{?_isa} = %{version}-%{release}
+Requires:       pulseaudio-utils
 BuildRequires:  pulseaudio-libs
 Conflicts:      pulseaudio
 # Fixed pulseaudio subpackages
@@ -303,23 +345,30 @@ PipeWire.
 %prep
 %autosetup -p1 %{?snapdate:-n %{name}-%{gitcommit}}
 
+
+%if %{with media-session}
+mkdir subprojects/packagefiles
+cp %{SOURCE1} subprojects/packagefiles/
+%endif
+
 %build
 %meson \
     -D docs=enabled -D man=enabled -D gstreamer=enabled -D systemd=enabled	\
     -D gstreamer-device-provider=disabled -D sdl2=disabled 			\
     -D audiotestsrc=disabled -D videotestsrc=disabled				\
     -D volume=disabled -D bluez5-codec-aptx=disabled -D roc=disabled 		\
+    -D bluez5-codec-lc3plus=disabled						\
 %ifarch s390x
     -D bluez5-codec-ldac=disabled						\
 %endif
-    -Dbluez5-codec-lc3plus=disabled						\
-    -D session-managers=[] 				\
+    %{!?with_media_session:-D session-managers=[]} 				\
     %{!?with_jack:-D pipewire-jack=disabled} 					\
     %{!?with_jackserver_plugin:-D jack=disabled} 				\
     %{!?with_libcamera_plugin:-D libcamera=disabled} 				\
-    %{?with_jack:-D jack-devel=true} 					\
+    %{?with_jack:-D jack-devel=true} 						\
     %{!?with_alsa:-D pipewire-alsa=disabled}					\
-    %{?with_vulkan:-D vulkan=enabled}
+    %{?with_vulkan:-D vulkan=enabled}						\
+    %{!?with_libusb:-D libusb=disabled}
 %meson_build
 
 %install
@@ -331,6 +380,10 @@ echo %{_libdir}/pipewire-%{apiversion}/jack/ > %{buildroot}%{_sysconfdir}/ld.so.
 %else
 rm %{buildroot}%{_datadir}/pipewire/jack.conf
 
+%if %{with media_session}
+rm %{buildroot}%{_datadir}/pipewire/media-session.d/with-jack
+%endif
+
 %endif
 
 %if %{with alsa}
@@ -340,6 +393,10 @@ cp %{buildroot}%{_datadir}/alsa/alsa.conf.d/50-pipewire.conf \
 cp %{buildroot}%{_datadir}/alsa/alsa.conf.d/99-pipewire-default.conf \
         %{buildroot}%{_sysconfdir}/alsa/conf.d/99-pipewire-default.conf
 
+%if %{with media_session}
+touch %{buildroot}%{_datadir}/pipewire/media-session.d/with-alsa
+%endif
+
 %endif
 
 %if ! %{with pulse}
@@ -348,9 +405,16 @@ rm %{buildroot}%{_bindir}/pipewire-pulse
 rm %{buildroot}%{_userunitdir}/pipewire-pulse.*
 rm %{buildroot}%{_datadir}/pipewire/pipewire-pulse.conf
 
+%if %{with media_session}
+rm %{buildroot}%{_datadir}/pipewire/media-session.d/with-pulseaudio
+%endif
+
 %endif
 
 %find_lang %{name}
+%if %{with media_session}
+%find_lang media-session
+%endif
 
 # upstream should use udev.pc
 mkdir -p %{buildroot}%{_prefix}/lib/udev/rules.d
@@ -358,10 +422,6 @@ mv -fv %{buildroot}/lib/udev/rules.d/90-pipewire-alsa.rules %{buildroot}%{_prefi
 
 
 %check
-%ifarch s390x
-# FIXME: s390x FAIL: pw-test-stream, pw-test-endpoint
-%global tests_nonfatal 1
-%endif
 %meson_test || TESTS_ERROR=$?
 if [ "${TESTS_ERROR}" != "" ]; then
 echo "test failed"
@@ -390,18 +450,44 @@ systemctl --no-reload preset --global pipewire.socket >/dev/null 2>&1 || :
 %systemd_user_post pipewire-pulse.socket
 %endif
 
+%if %{with media_session}
+%post media-session
+%systemd_user_post pipewire-media-session.service
+%endif
+
 %files
 %license LICENSE COPYING
 %doc README.md
 %{_userunitdir}/pipewire.*
 %{_bindir}/pipewire
 %{_mandir}/man1/pipewire.1*
-%{_mandir}/man1/pipewire-pulse.1*
 %dir %{_datadir}/pipewire/
 %{_datadir}/pipewire/pipewire.conf
 %{_datadir}/pipewire/minimal.conf
 %{_datadir}/pipewire/filter-chain/*.conf
 %{_mandir}/man5/pipewire.conf.5*
+
+%if %{with media_session}
+%files media-session -f media-session.lang
+%{_bindir}/pipewire-media-session
+%{_userunitdir}/pipewire-media-session.service
+%dir %{_datadir}/pipewire/media-session.d/
+%{_datadir}/pipewire/media-session.d/alsa-monitor.conf
+%{_datadir}/pipewire/media-session.d/bluez-monitor.conf
+%{_datadir}/pipewire/media-session.d/media-session.conf
+%{_datadir}/pipewire/media-session.d/v4l2-monitor.conf
+
+%if %{with alsa}
+%{_datadir}/pipewire/media-session.d/with-alsa
+%endif
+%if %{with jack}
+%{_datadir}/pipewire/media-session.d/with-jack
+%endif
+%if %{with pulse}
+%{_datadir}/pipewire/media-session.d/with-pulseaudio
+%endif
+
+%endif
 
 %files libs -f %{name}.lang
 %license LICENSE COPYING
@@ -416,8 +502,8 @@ systemctl --no-reload preset --global pipewire.socket >/dev/null 2>&1 || :
 %{_datadir}/spa-0.2/bluez5/bluez-hardware.conf
 %{_prefix}/lib/udev/rules.d/90-pipewire-alsa.rules
 %dir %{_libdir}/spa-%{spaversion}
-%{_libdir}/spa-%{spaversion}/alsa/
 %{_libdir}/spa-%{spaversion}/aec/
+%{_libdir}/spa-%{spaversion}/alsa/
 %{_libdir}/spa-%{spaversion}/audioconvert/
 %{_libdir}/spa-%{spaversion}/audiomixer/
 %{_libdir}/spa-%{spaversion}/bluez5/
@@ -519,6 +605,7 @@ systemctl --no-reload preset --global pipewire.socket >/dev/null 2>&1 || :
 %if %{with pulse}
 %files pulseaudio
 %{_bindir}/pipewire-pulse
+%{_mandir}/man1/pipewire-pulse.1*
 %{_userunitdir}/pipewire-pulse.*
 %{_datadir}/pipewire/pipewire-pulse.conf
 %endif
@@ -530,23 +617,551 @@ systemctl --no-reload preset --global pipewire.socket >/dev/null 2>&1 || :
 %endif
 
 %changelog
-* Thu May 05 2022 Peter Hutterer <peter.hutterer@redhat.com>
-- Disable lc3plus, not available in fedora
+* Thu Jun 30 2022 Wim Taymans <wtaymans@redhat.com> - 0.3.53-1
+- Update version to 0.3.53
 
-* Wed Feb 16 2022 Peter Hutterer <peter.hutterer@redhat.com>
-- Add spa aec dir
+* Thu Jun 23 2022 Wim Taymans <wtaymans@redhat.com> - 0.3.52-4
+- Add patch to remove 44.1KHz from samplerates
+- See rhbz#2096193
 
-* Tue Dec 14 2021 Peter Hutterer <peter.hutterer@redhat.com>
-- Add lilv to BuildRequires
+* Wed Jun 15 2022 Wim Taymans <wtaymans@redhat.com> - 0.3.52-3
+- Add patch to fix stuttering in TeamSpeak.
+- Inc baserel to 3, previous build was accidentally done with 2
+  instead of 1.
 
-* Sun Nov 14 2021 Peter Hutterer <peter.hutterer@redhat.com>
-- Sync the v4l2 bits from Fedora's pipewire.spec
+* Thu Jun 09 2022 Wim Taymans <wtaymans@redhat.com> - 0.3.52-1
+- Update version to 0.3.52
+- Disable LC3plus codec.
 
-* Sun Nov 14 2021 Peter Hutterer <peter.hutterer@redhat.com>
-- BuildRequire openssl-devel
+* Thu May 19 2022 Wim Taymans <wtaymans@redhat.com> - 0.3.51-2
+- Add pulseaudio-utils as Requires for pipewire-pulseaudio
 
-* Tue Oct 19 2021 Peter Hutterer <peter.hutterer@redhat.com>
-- drop media-session, it's its own package now
+* Thu Apr 28 2022 Wim Taymans <wtaymans@redhat.com> - 0.3.51-1
+- Update version to 0.3.51
 
-* Mon Oct 18 2021 Peter Hutterer <peter.hutterer@redhat.com>
-- copr autobuild from git setup
+* Wed Apr 13 2022 Wim Taymans <wtaymans@redhat.com> - 0.3.50-1
+- Update version to 0.3.50
+
+* Tue Mar 29 2022 Wim Taymans <wtaymans@redhat.com> - 0.3.49-1
+- Update version to 0.3.49
+- libusb was removed from f37
+
+* Thu Mar 3 2022 Wim Taymans <wtaymans@redhat.com> - 0.3.48-1
+- Update version to 0.3.48
+
+* Fri Feb 18 2022 Wim Taymans <wtaymans@redhat.com> - 0.3.47-1
+- Update version to 0.3.47
+
+* Thu Feb 17 2022 Wim Taymans <wtaymans@redhat.com> - 0.3.46-1
+- Update version to 0.3.46
+
+* Mon Feb 7 2022 Wim Taymans <wtaymans@redhat.com> - 0.3.45-2
+- Add patch for kernels with CONFIG_SND_VERBOSE_PROCFS=n
+- Add patch to make Musescore work again
+
+* Thu Feb 3 2022 Wim Taymans <wtaymans@redhat.com> - 0.3.45-1
+- Update version to 0.3.45
+
+* Thu Jan 27 2022 Wim Taymans <wtaymans@redhat.com> - 0.3.44-1
+- Update version to 0.3.44
+
+* Tue Jan 25 2022 Wim Taymans <wtaymans@redhat.com> - 0.3.43-5
+- Add more patches to avoid segfaults in bluez5
+
+* Fri Jan 21 2022 Fedora Release Engineering <releng@fedoraproject.org> - 0.3.43-4
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_36_Mass_Rebuild
+
+* Tue Jan 18 2022 Wim Taymans <wtaymans@redhat.com> - 0.3.43-3
+- Add patch to avoid segfault in bluez5 (rhbz#2041481)
+
+* Mon Jan 17 2022 Wim Taymans <wtaymans@redhat.com> - 0.3.43-2
+- Add patch to avoid segfault in bluez5 (rhbz#2041481)
+
+* Wed Jan 5 2022 Wim Taymans <wtaymans@redhat.com> - 0.3.43-1
+- Update version to 0.3.43
+
+* Thu Dec 16 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.42-1
+- Update version to 0.3.42
+
+* Mon Dec 13 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.41-1
+- Update version to 0.3.41
+
+* Thu Nov 11 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.40-1
+- Update version to 0.3.40 and media-session 0.4.1
+- Enable tests for s390x again
+
+* Tue Nov 09 2021 Peter Hutterer <peter.hutterer@redhat.com> - 0.3.39-3
+- Don't build media-session on F35, it's a separate package now, see #2016247
+
+* Wed Oct 27 2021 Peter Hutterer <peter.hutterer@redhat.com> - 0.3.39-2
+- Don't build media-session on F36, it's a separate package now, see #2016247
+- Remove versioned systemd dependency, 184 was released in 2012
+
+* Thu Oct 21 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.39-1
+- Update version to 0.3.39
+
+* Wed Oct 13 2021 Neal Gompa <ngompa@fedoraproject.org> - 0.3.38-2
+- Fix libcamera bcond to work properly in RHEL10+ and F36+
+
+* Thu Sep 30 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.38-1
+- Update version to 0.3.38
+
+* Wed Sep 29 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.37-3
+- Rebuild for new libcamera
+
+* Thu Sep 23 2021 Javier Martinez Canillas <javierm@redhat.com> - 0.3.37-2
+- Enable libcamera SPA plugin
+
+* Thu Sep 23 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.37-1
+- Update version to 0.3.37
+
+* Thu Sep 16 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.36-2
+- Update version to 0.3.36
+
+* Thu Sep 16 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.36-1
+- Update to 0.3.36
+- Do systemd post install of pipewire-media-session.service
+
+* Thu Sep 09 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.35-2
+- Add patch to fix passthrough check.
+
+* Thu Sep 09 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.35-1
+- Update to 0.3.35
+
+* Mon Aug 30 2021 Neal Gompa <ngompa@fedoraproject.org> - 0.3.34-2
+- Add preference for WirePlumber for session manager (#1989959)
+
+* Thu Aug 26 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.34-1
+- Update to 0.3.34
+
+* Wed Aug 11 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.33-3
+- Add more upstream patches.
+
+* Tue Aug 10 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.33-2
+- Add patch to fix default device persistence.
+
+* Thu Aug 5 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.33-1
+- Update to 0.3.33
+
+* Thu Aug 5 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.32-4
+- Add media-session Conflicts: with older pipewire versions, they can't be
+  installed at the same time because they both contain the media-session binary.
+
+* Fri Jul 23 2021 Fedora Release Engineering <releng@fedoraproject.org> - 0.3.32-3
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_35_Mass_Rebuild
+
+* Wed Jul 21 2021 Neal Gompa <ngompa@fedoraproject.org> - 0.3.32-2
+- Add conditional for media-session subpackage
+
+* Tue Jul 20 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.32-1
+- Update to 0.3.32
+
+* Thu Jul 15 2021 Peter Hutterer <peter.hutterer@redhat.com> - 0.3.31-4
+- Enable media-session.service, requires fedora-release-35-0.10 to enable the
+  service by default (#1976006).
+
+* Mon Jul 05 2021 Neal Gompa <ngompa13@gmail.com> - 0.3.31-3
+- Add "Conflicts: pipewire-session-manager" to pipewire-media-session
+  to enforce one implementation of the session manager at a time
+
+* Mon Jun 28 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.31-2
+- Fix session manager path
+
+* Mon Jun 28 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.31-1
+- Update to 0.3.31
+
+* Fri Jun 25 2021 Peter Hutterer <peter.hutterer@redhat.com> - 0.3.30-5
+- Split media-session into a subpackage and Require it through a virtual
+  Provides from the main pipewire package
+
+* Tue Jun 15 2021 Ćukasz Patron <priv.luk@gmail.com> - 0.3.30-4
+- Add patch for setting node description for module-combine-sink
+
+* Tue Jun 15 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.30-3
+- Rebuild for Gstreamer update
+
+* Thu Jun 10 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.30-2
+- Add ALSA UCM 1.2.5 compatibility fixes
+
+* Wed Jun 09 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.30-1
+- Update to 0.3.30
+
+* Fri Jun 04 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.29-2
+- Add some important patches.
+
+* Thu Jun 03 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.29-1
+- Update to 0.3.29
+
+* Mon May 17 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.28-1
+- Update to 0.3.28
+
+* Mon May 10 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.27-2
+- Add patch to fix volume issues.
+
+* Thu May 06 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.27-1
+- Update to 0.3.27
+
+* Thu Apr 29 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.26-4
+- Add some more important upstream patches.
+
+* Mon Apr 26 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.26-3
+- Add some important upstream patches.
+
+* Sat Apr 24 2021 Neal Gompa <ngompa13@gmail.com> - 0.3.26-2
+- Disable JACK server integration on RHEL
+
+* Thu Apr 22 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.26-1
+- Update to 0.3.26
+
+* Tue Apr 20 2021 Neal Gompa <ngompa13@gmail.com> - 0.3.25-2
+- Add jack-devel subpackage, enable JACK support on RHEL 9+ (#1945951)
+
+* Tue Apr 06 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.25-1
+- Update to 0.3.25
+
+* Thu Mar 25 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.24-4
+- Apply some critical upstream patches
+
+* Thu Mar 25 2021 Kalev Lember <klember@redhat.com> - 0.3.24-3
+- Fix RHEL build
+
+* Thu Mar 25 2021 Kalev Lember <klember@redhat.com> - 0.3.24-2
+- Move individual config files to the subpackages that make use of them
+
+* Thu Mar 18 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.24-1
+- Update to 0.3.24
+
+* Tue Mar 09 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.23-2
+- Add patch to enable UCM Microphones
+
+* Thu Mar 04 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.23-1
+- Update to 0.3.23
+
+* Wed Feb 24 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.22-7
+- Add patch to sample destroy use after free
+
+* Wed Feb 24 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.22-6
+- Add patch for jack names
+
+* Mon Feb 22 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.22-5
+- Add some critical patches
+
+* Fri Feb 19 2021 Neal Gompa <ngompa13@gmail.com> - 0.3.22-4
+- Replace more PulseAudio modules on upgrade in F34+
+
+* Fri Feb 19 2021 Neal Gompa <ngompa13@gmail.com> - 0.3.22-3
+- Replace ALSA plugins and PulseAudio modules on upgrade in F34+
+
+* Fri Feb 19 2021 Neal Gompa <ngompa13@gmail.com> - 0.3.22-2
+- Replace JACK and PulseAudio on upgrade in F34+
+  Reference: https://fedoraproject.org/wiki/Changes/DefaultPipeWire
+
+* Thu Feb 18 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.22-1
+- Update to 0.3.22
+- disable sdl2 examples
+
+* Thu Feb 04 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.21-2
+- Add some upstream patches
+- Fixes rhbz#1925138
+
+* Wed Feb 03 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.21-1
+- Update to 0.3.21
+
+* Wed Jan 27 2021 Fedora Release Engineering <releng@fedoraproject.org> - 0.3.20-2
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_34_Mass_Rebuild
+
+* Wed Jan 20 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.20-1
+- Update to 0.3.20
+- Fix baseversion
+- Add gettext dependency
+
+* Tue Jan 12 2021 Neal Gompa <ngompa13@gmail.com> - 0.3.19-4
+- Rework conditional build to fix ELN builds
+
+* Sat Jan  9 2021 Evan Anderson <evan@eaanderson.com> - 0.3.19-3
+- Add LDAC and AAC dependency to enhance Bluetooth support
+
+* Thu Jan  7 2021 Neal Gompa <ngompa13@gmail.com> - 0.3.19-2
+- Obsolete useless libjack subpackage with jack-audio-connection-kit subpackage
+
+* Tue Jan 5 2021 Wim Taymans <wtaymans@redhat.com> - 0.3.19-1
+- Update to 0.3.19
+- Add ncurses-devel BR
+
+* Tue Dec 15 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.18-1
+- Update to 0.3.18
+
+* Fri Nov 27 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.17-2
+- Add some more Provides: for pulseaudio
+
+* Thu Nov 26 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.17-1
+- Update to 0.3.17
+
+* Tue Nov 24 2020 Neal Gompa <ngompa13@gmail.com> - 0.3.16-4
+- Add 'pulseaudio-daemon' Provides + Conflicts to pipewire-pulseaudio
+- Remove useless ldconfig macros that expand to nothing
+
+* Fri Nov 20 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.16-3
+- Fix Requires for pipewire-pulseaudio
+- Fixes rhbz#1899945
+
+* Fri Nov 20 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.16-2
+- Add patch to fix crash in kwin, Fixes rhbz#1899826
+
+* Thu Nov 19 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.16-1
+- Update to 0.3.16
+
+* Wed Nov 4 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.15-2
+- Add patch to fix screen sharing for old clients
+
+* Wed Nov 4 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.15-1
+- Update to 0.3.15
+
+* Sun Nov 1 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.14-2
+- Add some pulse server patches
+
+* Fri Oct 30 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.14-1
+- Update to 0.3.14
+
+* Sun Oct 18 2020 Neal Gompa <ngompa13@gmail.com> - 0.3.13-6
+- Fix jack and pulseaudio subpackages to generate dependencies properly
+
+* Tue Oct 13 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.13-5
+- Disable device provider for now
+- Fixes rhbz#1884260
+
+* Thu Oct 1 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.13-4
+- Add patches for some crasher bugs
+- Fixes rhbz#1884177
+
+* Tue Sep 29 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.13-3
+- Add patch to improve pulse compatibility
+
+* Mon Sep 28 2020 Jeff Law <law@redhat.com> - 0.3.13-2
+- Re-enable LTO as upstream GCC target/96939 has been fixed
+
+* Mon Sep 28 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.13-1
+- Update to 0.3.13
+
+* Fri Sep 18 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.12-1
+- Update to 0.3.12
+
+* Fri Sep 11 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.11-2
+- Add some patches to improve pulse compatibility
+
+* Thu Sep 10 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.11-1
+- Update to 0.3.11
+
+* Mon Aug 17 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.10-1
+- Update to 0.3.10
+
+* Tue Aug 04 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.9-1
+- Update to 0.3.9
+
+* Tue Aug 04 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.8-3
+- Add patch to avoid segfault when iterating ports.
+- Fixes #1865827
+
+* Wed Jul 29 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.8-2
+- Add patch for fix chrome audio hicups
+- Add patch for infinite loop in device add/remove
+- Disable LTO on armv7
+
+* Tue Jul 28 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.8-1
+- Update to 0.3.8
+
+* Tue Jul 21 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.7-2
+- Add patch to avoid crash when clearing metadata
+
+* Tue Jul 21 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.7-1
+- Update to 0.3.7
+
+* Wed Jun 10 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.6-2
+- Use systemd presets to enable pipewire.socket
+- Remove duplicate hardened_build flags
+- Add meson build again
+- Fix -gstreamer subpackage Requires:
+
+* Wed Jun 10 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.6-1
+- Update to 0.3.6
+- Add new man pages
+- Only build vulkan/pulse/jack in Fedora.
+
+* Mon May 11 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.5-1
+- Update to 0.3.5
+
+* Fri May 01 2020 Adam Williamson <awilliam@redhat.com> - 0.3.4-2
+- Suppress library provides from pipewire-lib{pulse,jack}
+
+* Thu Apr 30 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.4-1
+- Update to 0.3.4
+- Add 2 more packages that replace libjack and libpulse
+
+* Tue Mar 31 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.2-3
+- Add patch to unsubscribe unused sequencer ports
+- Change config to only disable bluez5 handling by default.
+
+* Mon Mar 30 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.2-2
+- Add config to disable alsa and bluez5 handling by default.
+
+* Thu Mar 26 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.2-1
+- Update to 0.3.2
+
+* Fri Mar 06 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.1-1
+- Update to 0.3.1
+
+* Thu Feb 20 2020 Wim Taymans <wtaymans@redhat.com> - 0.3.0-1
+- Update to 0.3.0
+- Add libpulse-simple-pw.so
+
+* Wed Feb 19 2020 Wim Taymans <wtaymans@redhat.com> - 0.2.97-1
+- Update to 0.2.97
+- Change download link
+
+* Tue Feb 18 2020 Kalev Lember <klember@redhat.com> - 0.2.96-2
+- Rename subpackages so that libjack-pw is in -libjack
+  and libpulse-pw is in -libpulse
+- Split libspa-jack.so out to -plugin-jack subpackage
+- Avoid hard-requiring the daemon from any of the library subpackages
+
+* Tue Feb 11 2020 Wim Taymans <wtaymans@redhat.com> - 0.2.96-1
+- Update to 0.2.96
+- Split -gstreamer package
+- Enable aarch64 tests again
+
+* Fri Feb 07 2020 Wim Taymans <wtaymans@redhat.com> - 0.2.95-1
+- Update to 0.2.95
+- Disable test on aarch64 for now
+
+* Wed Feb 05 2020 Wim Taymans <wtaymans@redhat.com> - 0.2.94-1
+- Update to 0.2.94
+- Move pipewire modules to -libs
+- Add pw-profiler
+- Add libsndfile-devel as a BR
+
+* Thu Jan 30 2020 Fedora Release Engineering <releng@fedoraproject.org> - 0.2.92-2
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_32_Mass_Rebuild
+
+* Tue Jan 28 2020 Wim Taymans <wtaymans@redhat.com> - 0.2.93-1
+- Update to 0.2.93
+
+* Wed Jan 15 2020 Wim Taymans <wtaymans@redhat.com> - 0.2.92-1
+- Update to 0.2.92
+
+* Wed Jan 15 2020 Wim Taymans <wtaymans@redhat.com> - 0.2.91-1
+- Update to 0.2.91
+- Add some more BR
+- Fix some unit tests
+
+* Mon Jan 13 2020 Wim Taymans <wtaymans@redhat.com> - 0.2.90-1
+- Update to 0.2.90
+
+* Thu Nov 28 2019 Kalev Lember <klember@redhat.com> - 0.2.7-2
+- Move spa plugins to -libs subpackage
+
+* Thu Sep 26 2019 Wim Taymans <wtaymans@redhat.com> - 0.2.7-1
+- Update to 0.2.7
+
+* Mon Sep 16 2019 Kalev Lember <klember@redhat.com> - 0.2.6-5
+- Don't require the daemon package for -devel subpackage
+- Move pipewire.conf man page to the daemon package
+
+* Fri Jul 26 2019 Fedora Release Engineering <releng@fedoraproject.org> - 0.2.6-4
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_31_Mass_Rebuild
+
+* Wed Jun 19 2019 Wim Taymans <wtaymans@redhat.com> - 0.2.6-3
+- Add patch to reuse fd in pipewiresrc
+- Add patch for device provider
+- Add patch to disable extra security checks until portal is fixed.
+
+* Tue Jun 04 2019 Kalev Lember <klember@redhat.com> - 0.2.6-2
+- Split libpipewire and the gstreamer plugin out to -libs subpackage
+
+* Wed May 22 2019 Wim Taymans <wtaymans@redhat.com> - 0.2.6-1
+- Update to 0.2.6
+- Add patch for alsa-lib 1.1.9 include path
+
+* Sat Feb 02 2019 Fedora Release Engineering <releng@fedoraproject.org> - 0.2.5-3
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_30_Mass_Rebuild
+
+* Fri Jan 04 2019 Wim Taymans <wtaymans@redhat.com> - 0.2.5-2
+- Add patch to avoid invalid conversion error with C++ compilers
+
+* Thu Nov 22 2018 Wim Taymans <wtaymans@redhat.com> - 0.2.5-1
+- Update to 0.2.5
+
+* Thu Nov 22 2018 Wim Taymans <wtaymans@redhat.com> - 0.2.4-1
+- Update to 0.2.4
+
+* Thu Oct 18 2018 Wim Taymans <wtaymans@redhat.com> - 0.2.3-2
+- Add systemd socket activation
+
+* Thu Aug 30 2018 Wim Taymans <wtaymans@redhat.com> - 0.2.3-1
+- Update to 0.2.3
+
+* Tue Jul 31 2018 Wim Taymans <wtaymans@redhat.com> - 0.2.2-1
+- Update to 0.2.2
+
+* Fri Jul 20 2018 Wim Taymans <wtaymans@redhat.com> - 0.2.1-1
+- Update to 0.2.1
+
+* Tue Jul 17 2018 Wim Taymans <wtaymans@redhat.com> - 0.2.0-1
+- Update to 0.2.0
+
+* Fri Jul 13 2018 Fedora Release Engineering <releng@fedoraproject.org> - 0.1.9-2
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_29_Mass_Rebuild
+
+* Tue Feb 27 2018 Wim Taymans <wtaymans@redhat.com> - 0.1.9-1
+- Update to 0.1.9
+
+* Fri Feb 09 2018 Fedora Release Engineering <releng@fedoraproject.org> - 0.1.8-3
+- Rebuilt for https://fedoraproject.org/wiki/Fedora_28_Mass_Rebuild
+
+* Sat Feb 03 2018 Igor Gnatenko <ignatenkobrain@fedoraproject.org> - 0.1.8-2
+- Switch to %%ldconfig_scriptlets
+
+* Tue Jan 23 2018 Wim Taymans <wtaymans@redhat.com> - 0.1.8-1
+- Update to 0.1.8
+
+* Fri Nov 24 2017 Wim Taymans <wtaymans@redhat.com> - 0.1.7-1
+- Update to 0.1.7
+- Add to build when memfd_create is already defined
+
+* Fri Nov 03 2017 Wim Taymans <wtaymans@redhat.com> - 0.1.6-1
+- Update to 0.1.6
+
+* Tue Sep 19 2017 Wim Taymans <wtaymans@redhat.com> - 0.1.5-2
+- Add patch to avoid segfault when probing
+
+* Tue Sep 19 2017 Wim Taymans <wtaymans@redhat.com> - 0.1.5-1
+- Update to 0.1.5
+
+* Thu Sep 14 2017 Kalev Lember <klember@redhat.com> - 0.1.4-3
+- Rebuilt for GNOME 3.26.0 megaupdate
+
+* Fri Sep 08 2017 Wim Taymans <wtaymans@redhat.com> - 0.1.4-2
+- Install SPA hooks
+
+* Wed Aug 23 2017 Wim Taymans <wtaymans@redhat.com> - 0.1.4-1
+- Update to 0.1.4
+
+* Wed Aug 09 2017 Wim Taymans <wtaymans@redhat.com> - 0.1.3-1
+- Update to 0.1.3
+
+* Tue Jul 04 2017 Wim Taymans <wtaymans@redhat.com> - 0.1.2-1
+- Update to 0.1.2
+- Added more build requirements
+- Make separate doc package
+
+* Mon Jun 26 2017 Wim Taymans <wtaymans@redhat.com> - 0.1.1-1
+- Update to 0.1.1
+- Add dbus-1 to BuildRequires
+- change libs-devel to -devel
+
+* Wed Sep 9 2015 Wim Taymans <wtaymans@redhat.com> - 0.1.0-2
+- Fix BuildRequires to use pkgconfig, add all dependencies found in configure.ac
+- Add user and groups  if needed
+- Add license to %%licence
+
+* Tue Sep 1 2015 Wim Taymans <wtaymans@redhat.com> - 0.1.0-1
+- First version
